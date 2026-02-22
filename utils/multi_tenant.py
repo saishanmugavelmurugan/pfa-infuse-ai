@@ -9,7 +9,7 @@ from typing import Optional, Dict, List
 # Import directly from the file to avoid circular imports through services/__init__.py
 import sys
 import importlib.util
-spec = importlib.util.spec_from_file_location("multi_tenant_service", "C:/Users/SSankar/Downloads/HealthTrackPro-SecureSphere-Complete/HealthTrackPro/backend/services/multi_tenant_service.py")
+spec = importlib.util.spec_from_file_location("multi_tenant_service", "services/multi_tenant_service.py")
 multi_tenant_module = importlib.util.module_from_spec(spec)
 sys.modules["multi_tenant_service"] = multi_tenant_module
 spec.loader.exec_module(multi_tenant_module)

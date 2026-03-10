@@ -9,8 +9,8 @@ import uuid
 import bcrypt
 import os
 
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin")
-DB_NAME = os.environ.get("DB_NAME", "healthtrack_pro")
+MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+DB_NAME = os.environ.get('DB_NAME', 'healthtrack_pro')
 
 async def seed_demo_data():
     client = AsyncIOMotorClient(MONGO_URL)

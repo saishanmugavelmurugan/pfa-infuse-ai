@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 # External backend URL from frontend/.env
-BACKEND_URL = "https://caretrack-68.preview.emergentagent.com/api"
+BACKEND_URL = "https://qa-track-suite.preview.emergentagent.com/api"
 
 class ABDMPhase2BTester:
     def __init__(self):

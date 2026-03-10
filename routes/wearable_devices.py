@@ -12,7 +12,7 @@ async def get_db():
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    return client[os.environ.get('DB_NAME', 'test_database')]
+    return client[os.environ.get('DB_NAME', 'healthtrack_pro')]
 
 class WearableDevice(BaseModel):
     device_type: str  # apple_watch, fitbit, garmin, samsung_health

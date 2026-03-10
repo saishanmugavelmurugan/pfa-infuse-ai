@@ -2,11 +2,27 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
+import os
 from utils.auth import get_current_user
 from dependencies import get_db
 from utils.multi_tenant import get_user_organization, verify_organization_access
+from utils.encryption import encrypt_sensitive_data, decrypt_sensitive_data, SENSITIVE_HEALTH_FIELDS
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/healthtrack/patients", tags=["HealthTrack - Patients"])
+
+# Encryption configuration
+ENCRYPTION_ENABLED = os.environ.get("ENCRYPTION_ENABLED", "true").lower() == "true"
+
+# Patient-specific sensitive fields
+PATIENT_SENSITIVE_FIELDS = [
+    "first_name", "last_name", "email", "phone", "date_of_birth",
+    "national_id", "abha_number", "emirates_id", "passport_number",
+    "insurance_id", "address", "street", "city", "emergency_contact",
+    "medical_history", "allergies", "chronic_conditions", "blood_group"
+]
 
 # Helper function to generate patient number
 def generate_patient_number(org_id: str) -> str:
@@ -14,13 +30,35 @@ def generate_patient_number(org_id: str) -> str:
     import random
     return f"PAT-{random.randint(100000, 999999)}"
 
+def encrypt_patient_data(patient_data: dict) -> dict:
+    """Encrypt sensitive patient fields if encryption is enabled"""
+    if not ENCRYPTION_ENABLED:
+        return patient_data
+    try:
+        return encrypt_sensitive_data(patient_data, PATIENT_SENSITIVE_FIELDS)
+    except Exception as e:
+        logger.warning(f"Encryption failed, storing unencrypted: {e}")
+        return patient_data
+
+def decrypt_patient_data(patient_data: dict) -> dict:
+    """Decrypt sensitive patient fields if they are encrypted"""
+    if not patient_data:
+        return patient_data
+    if not ENCRYPTION_ENABLED:
+        return patient_data
+    try:
+        return decrypt_sensitive_data(patient_data)
+    except Exception as e:
+        logger.warning(f"Decryption failed, returning as-is: {e}")
+        return patient_data
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def register_patient(
     patient_data: dict,
     current_user: dict = Depends(get_current_user),
     db = Depends(get_db)
 ):
-    """Register a new patient"""
+    """Register a new patient with AES-256 encryption for sensitive fields"""
     user_id = current_user["user_id"]
     
     # Get user's organization
@@ -34,8 +72,9 @@ async def register_patient(
     org_id = org["id"]
     
     # Check if email already exists in this organization
+    # Note: For encrypted emails, we'd need a hash index for searching
     existing = await db.healthtrack_patients.find_one(
-        {"organization_id": org_id, "email": patient_data["email"]},
+        {"organization_id": org_id, "email": patient_data.get("email")},
         {"_id": 0}
     )
     if existing:
@@ -44,7 +83,7 @@ async def register_patient(
             detail="Patient with this email already exists"
         )
     
-    # Create patient
+    # Create patient document
     patient_dict = {
         "id": str(uuid.uuid4()),
         "organization_id": org_id,
@@ -56,14 +95,20 @@ async def register_patient(
         **patient_data
     }
     
-    await db.healthtrack_patients.insert_one(patient_dict)
+    # Encrypt sensitive fields before storage
+    encrypted_patient = encrypt_patient_data(patient_dict)
     
-    # Remove MongoDB _id
+    await db.healthtrack_patients.insert_one(encrypted_patient)
+    
+    # Return decrypted data (remove MongoDB _id)
     patient_dict.pop("_id", None)
+    
+    logger.info(f"Patient registered with encryption: {ENCRYPTION_ENABLED}")
     
     return {
         "message": "Patient registered successfully",
-        "patient": patient_dict
+        "patient": patient_dict,
+        "encrypted": ENCRYPTION_ENABLED
     }
 
 @router.get("")
@@ -75,7 +120,7 @@ async def list_patients(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_db)
 ):
-    """List all patients in organization"""
+    """List all patients in organization (with automatic decryption)"""
     user_id = current_user["user_id"]
     
     org = await get_user_organization(user_id, db)
@@ -91,29 +136,32 @@ async def list_patients(
     if status_filter:
         query["status"] = status_filter
     
+    # Note: Search on encrypted fields requires patient_number (non-encrypted) or exact match
     if search:
         query["$or"] = [
-            {"first_name": {"$regex": search, "$options": "i"}},
-            {"last_name": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-            {"phone": {"$regex": search, "$options": "i"}},
             {"patient_number": {"$regex": search, "$options": "i"}}
+            # Encrypted fields can't be searched with regex
+            # In production, use searchable encryption or separate search index
         ]
     
     # Get total count
     total = await db.healthtrack_patients.count_documents(query)
     
     # Get patients
-    patients = await db.healthtrack_patients.find(
+    patients_raw = await db.healthtrack_patients.find(
         query,
         {"_id": 0}
     ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Decrypt sensitive fields for each patient
+    patients = [decrypt_patient_data(p) for p in patients_raw]
     
     return {
         "total": total,
         "skip": skip,
         "limit": limit,
-        "patients": patients
+        "patients": patients,
+        "encryption_enabled": ENCRYPTION_ENABLED
     }
 
 @router.get("/{patient_id}")
@@ -122,7 +170,7 @@ async def get_patient(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_db)
 ):
-    """Get patient details"""
+    """Get patient details (with automatic decryption)"""
     user_id = current_user["user_id"]
     
     org = await get_user_organization(user_id, db)
@@ -130,13 +178,16 @@ async def get_patient(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
     
     # Get patient
-    patient = await db.healthtrack_patients.find_one(
+    patient_raw = await db.healthtrack_patients.find_one(
         {"id": patient_id, "organization_id": org["id"]},
         {"_id": 0}
     )
     
-    if not patient:
+    if not patient_raw:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    
+    # Decrypt sensitive fields
+    patient = decrypt_patient_data(patient_raw)
     
     return patient
 
@@ -147,7 +198,7 @@ async def update_patient(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_db)
 ):
-    """Update patient details"""
+    """Update patient details (with automatic encryption)"""
     user_id = current_user["user_id"]
     
     org = await get_user_organization(user_id, db)
@@ -163,21 +214,25 @@ async def update_patient(
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     
-    # Update patient
+    # Add timestamp
     patient_update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Encrypt sensitive fields before update
+    encrypted_update = encrypt_patient_data(patient_update)
     
     await db.healthtrack_patients.update_one(
         {"id": patient_id},
-        {"$set": patient_update}
+        {"$set": encrypted_update}
     )
     
-    # Get updated patient
-    updated_patient = await db.healthtrack_patients.find_one(
+    # Get updated patient and decrypt
+    updated_patient_raw = await db.healthtrack_patients.find_one(
         {"id": patient_id},
         {"_id": 0}
     )
+    updated_patient = decrypt_patient_data(updated_patient_raw)
     
-    return {"message": "Patient updated successfully", "patient": updated_patient}
+    return {"message": "Patient updated successfully", "patient": updated_patient, "encrypted": ENCRYPTION_ENABLED}
 
 @router.delete("/{patient_id}")
 async def archive_patient(

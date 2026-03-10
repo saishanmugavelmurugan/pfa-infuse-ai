@@ -23,6 +23,25 @@ class OAuthConfig:
         self._configs: Dict[str, Dict[str, Any]] = {}
         self._load_configs()
     
+    def _get_redirect_uri(self, provider: str) -> str:
+        """Get environment-aware redirect URI for OAuth providers"""
+        # Check for explicit redirect URI in environment
+        explicit_uri = os.environ.get("HEALTH_OAUTH_REDIRECT_URI")
+        if explicit_uri:
+            # If explicit URI doesn't include provider, append it
+            if not explicit_uri.endswith(provider):
+                return f"{explicit_uri.rstrip('/')}/{provider}"
+            return explicit_uri
+        
+        # Build from APP_URL or REACT_APP_BACKEND_URL
+        base_url = os.environ.get("APP_URL") or os.environ.get("REACT_APP_BACKEND_URL", "")
+        if base_url:
+            return f"{base_url.rstrip('/')}/api/health-sync/callback/{provider}"
+        
+        # Fallback: require environment variable to be set
+        # Return empty string which will cause OAuth to fail gracefully with clear error
+        return ""
+    
     def _load_configs(self):
         """Load OAuth configurations from environment variables"""
         
@@ -45,7 +64,7 @@ class OAuthConfig:
                 "https://www.googleapis.com/auth/fitness.blood_pressure.read",
                 "https://www.googleapis.com/auth/fitness.oxygen_saturation.read"
             ],
-            "redirect_uri": os.environ.get("HEALTH_OAUTH_REDIRECT_URI", "https://infuse.net.in/api/health-sync/callback/google_fit"),
+            "redirect_uri": self._get_redirect_uri("google_fit"),
             "supported_data_types": [
                 "steps", "heart_rate", "sleep", "activity", "weight",
                 "blood_pressure", "blood_glucose", "oxygen_saturation"
@@ -65,7 +84,7 @@ class OAuthConfig:
             "token_url": "https://api.fitbit.com/oauth2/token",
             "api_base_url": "https://api.fitbit.com/1/user/-",
             "scopes": ["activity", "heartrate", "sleep", "weight", "nutrition", "profile"],
-            "redirect_uri": os.environ.get("HEALTH_OAUTH_REDIRECT_URI", "https://infuse.net.in/api/health-sync/callback/fitbit"),
+            "redirect_uri": self._get_redirect_uri("fitbit"),
             "supported_data_types": [
                 "steps", "heart_rate", "sleep", "activity", "weight",
                 "nutrition", "hydration", "stress"
@@ -89,7 +108,7 @@ class OAuthConfig:
             "auth_url": "https://connect.garmin.com/oauthConfirm",
             "access_token_url": "https://connectapi.garmin.com/oauth-service/oauth/access_token",
             "api_base_url": "https://apis.garmin.com",
-            "callback_url": os.environ.get("HEALTH_OAUTH_REDIRECT_URI", "https://infuse.net.in/api/health-sync/callback/garmin_connect"),
+            "callback_url": self._get_redirect_uri("garmin_connect"),
             "supported_data_types": [
                 "steps", "heart_rate", "sleep", "activity", "weight",
                 "stress", "respiratory_rate", "body_temperature"

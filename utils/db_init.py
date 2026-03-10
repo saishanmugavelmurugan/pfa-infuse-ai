@@ -9,9 +9,9 @@ import os
 
 async def create_indexes():
     """Create all necessary database indexes for scalability"""
-
-    mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin")
-    db_name = os.environ.get("DB_NAME", "healthtrack_pro")
+    
+    mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+    db_name = os.environ.get('DB_NAME', 'healthtrack_pro')
     
     client = AsyncIOMotorClient(mongo_url)
     db = client[db_name]

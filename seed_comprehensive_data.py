@@ -13,8 +13,8 @@ import hashlib
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # MongoDB connection
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin")
-DB_NAME = os.environ.get("DB_NAME", "infuse_db")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "healthtrack_pro")
 
 def hash_password(password: str) -> str:
     """Hash password for storage"""

@@ -121,7 +121,7 @@ async def invite_team_member(
     await db.team_invites.insert_one(invite_record)
     
     # Generate invite link
-    base_url = "https://caretrack-68.preview.emergentagent.com"
+    base_url = "https://qa-track-suite.preview.emergentagent.com"
     invite_link = f"{base_url}/accept-invite?token={invite_token}"
     
     return {

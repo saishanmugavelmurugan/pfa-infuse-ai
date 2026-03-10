@@ -12,7 +12,7 @@ import os
 async def seed_ai_analytics_data():
     """Seed comprehensive demo data for AI analytics"""
     
-    client = AsyncIOMotorClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin"))
+    client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
     db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     print("🔬 Seeding AI Analytics Demo Data...")

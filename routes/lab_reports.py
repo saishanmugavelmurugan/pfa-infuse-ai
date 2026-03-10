@@ -6,11 +6,44 @@ import os
 import base64
 import asyncio
 import dependencies
+from utils.encryption import encrypt_sensitive_data, decrypt_sensitive_data
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Lazy import - only import when needed (saves 1.3s on startup)
 # from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
 
 router = APIRouter()
+
+# Encryption configuration
+ENCRYPTION_ENABLED = os.environ.get("ENCRYPTION_ENABLED", "true").lower() == "true"
+
+# Lab report sensitive fields
+LAB_SENSITIVE_FIELDS = [
+    "detected_conditions", "abnormal_values", "simple_explanation",
+    "recommendations", "analysis", "ayurveda_recommendations"
+]
+
+def encrypt_lab_data(data: dict) -> dict:
+    """Encrypt sensitive lab report fields"""
+    if not ENCRYPTION_ENABLED:
+        return data
+    try:
+        return encrypt_sensitive_data(data, LAB_SENSITIVE_FIELDS)
+    except Exception as e:
+        logger.warning(f"Lab encryption failed: {e}")
+        return data
+
+def decrypt_lab_data(data: dict) -> dict:
+    """Decrypt sensitive lab report fields"""
+    if not data or not ENCRYPTION_ENABLED:
+        return data
+    try:
+        return decrypt_sensitive_data(data)
+    except Exception as e:
+        logger.warning(f"Lab decryption failed: {e}")
+        return data
 
 # LLM Key will be accessed when needed (not at import time)
 
@@ -182,21 +215,26 @@ Format your response as JSON with these keys:
             conditions=analysis.get("detected_conditions", [])
         )
         
-        # Update report in database
+        # Update report in database (with encryption)
+        update_data = {
+            "analysis_status": "completed",
+            "analysis": analysis,
+            "detected_conditions": analysis.get("detected_conditions", []),
+            "abnormal_values": analysis.get("abnormal_values", []),
+            "severity": analysis.get("severity", "routine"),
+            "simple_explanation": analysis.get("simple_explanation", ""),
+            "recommendations": analysis.get("recommendations", []),
+            "suggested_doctors": suggested_doctors,
+            "ayurveda_recommendations": ayurveda_recommendations,
+            "analysis_date": datetime.utcnow().isoformat()
+        }
+        
+        # Encrypt sensitive analysis data
+        encrypted_update = encrypt_lab_data(update_data)
+        
         await db.lab_reports.update_one(
             {"report_id": report_id},
-            {"$set": {
-                "analysis_status": "completed",
-                "analysis": analysis,
-                "detected_conditions": analysis.get("detected_conditions", []),
-                "abnormal_values": analysis.get("abnormal_values", []),
-                "severity": analysis.get("severity", "routine"),
-                "simple_explanation": analysis.get("simple_explanation", ""),
-                "recommendations": analysis.get("recommendations", []),
-                "suggested_doctors": suggested_doctors,
-                "ayurveda_recommendations": ayurveda_recommendations,
-                "analysis_date": datetime.utcnow().isoformat()
-            }}
+            {"$set": encrypted_update}
         )
         
         # Clean up temp file if PDF
@@ -221,42 +259,51 @@ Format your response as JSON with these keys:
 @router.get("/report/{report_id}")
 async def get_report_analysis(report_id: str):
     """
-    Get lab report analysis by ID.
+    Get lab report analysis by ID (with automatic decryption).
     """
     db = dependencies.get_database()
     
-    report = await db.lab_reports.find_one({"report_id": report_id}, {"_id": 0, "file_data": 0})
+    report_raw = await db.lab_reports.find_one({"report_id": report_id}, {"_id": 0, "file_data": 0})
     
-    if not report:
+    if not report_raw:
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Decrypt sensitive fields
+    report = decrypt_lab_data(report_raw)
     
     return report
 
 @router.get("/user-reports/{user_id}")
 async def get_user_reports(user_id: str):
     """
-    Get all lab reports for a user.
+    Get all lab reports for a user (with automatic decryption).
     """
     db = dependencies.get_database()
     
-    reports = await db.lab_reports.find(
+    reports_raw = await db.lab_reports.find(
         {"user_id": user_id}, 
         {"_id": 0, "file_data": 0}
     ).to_list(100)
+    
+    # Decrypt each report
+    reports = [decrypt_lab_data(r) for r in reports_raw]
     
     return {"reports": reports, "count": len(reports)}
 
 @router.get("")
 async def list_all_lab_reports(limit: int = 50):
     """
-    Get all lab reports (admin view).
+    Get all lab reports (admin view, with automatic decryption).
     """
     db = dependencies.get_db()
     
-    reports = await db.lab_reports.find(
+    reports_raw = await db.lab_reports.find(
         {}, 
         {"_id": 0, "file_data": 0}
     ).to_list(limit)
+    
+    # Decrypt each report
+    reports = [decrypt_lab_data(r) for r in reports_raw]
     
     return {"reports": reports, "count": len(reports)}
 

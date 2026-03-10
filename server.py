@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, Depends
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 import os
@@ -28,10 +28,17 @@ from routes import developer_portal, webhooks
 
 ROOT_DIR = Path(__file__).parent
 
+
+# Try auto-find
+found = find_dotenv()
+print("find_dotenv() ->", found)
+
 # Load environment variables (only if .env exists, for local development)
 env_file = ROOT_DIR / '.env'
+
+
 if env_file.exists():
-    load_dotenv(env_file, override=False)
+    load_dotenv(env_file, override=True)
     logging.info("Loaded environment from .env file")
 else:
     logging.info("No .env file found, using system environment variables")
@@ -382,6 +389,77 @@ app.include_router(team_management.router)
 # Monitoring & Metrics - Performance monitoring, alerting, capacity planning
 from routes import monitoring
 api_router.include_router(monitoring.router)
+
+# Multi-Agent AI System - Support, Master (Monitoring), and Roadmap Agents
+from routes.multi_agents import support_agent, master_agent, roadmap_agent
+api_router.include_router(support_agent.router)
+api_router.include_router(master_agent.router)
+api_router.include_router(roadmap_agent.router)
+
+# Compliance PDF Generator
+from routes import compliance_pdf
+api_router.include_router(compliance_pdf.router)
+
+# Compliance Certificates
+from routes import certificates
+api_router.include_router(certificates.router)
+
+# Marketing Campaigns & Pricing
+from routes import marketing_campaigns
+api_router.include_router(marketing_campaigns.router)
+
+# Direct Downloads (force download)
+from routes import direct_downloads
+api_router.include_router(direct_downloads.router)
+
+# DHA Compliance Documents
+from routes import dha_compliance
+api_router.include_router(dha_compliance.router)
+
+# ML Health Analysis (Prakriti, Anomaly Detection, Trend Forecasting, Ayurveda RAG)
+from routes import ml_health_api
+api_router.include_router(ml_health_api.router)
+
+# DHA Compliance - Multi-Factor Authentication (MFA)
+from routes import mfa
+api_router.include_router(mfa.router)
+
+# FHIR R4 API - HL7 Interoperability for NABIDH Compliance
+from routes import fhir_api
+api_router.include_router(fhir_api.router)
+
+# Wearable Health Integration (Apple Health, Google Fit)
+from routes import wearable_api
+api_router.include_router(wearable_api.router)
+
+# Lab Report OCR and AI Analysis
+from routes import lab_ocr
+api_router.include_router(lab_ocr.router)
+
+# Encryption Status Endpoint
+@api_router.get("/encryption/status", tags=["Security"])
+async def get_encryption_status():
+    """Get current encryption configuration status"""
+    encryption_enabled = os.environ.get("ENCRYPTION_ENABLED", "true").lower() == "true"
+    encryption_key_configured = bool(os.environ.get("ENCRYPTION_KEY"))
+    
+    return {
+        "encryption_enabled": encryption_enabled,
+        "encryption_key_configured": encryption_key_configured,
+        "algorithm": "AES-256-GCM" if encryption_enabled else None,
+        "protected_collections": [
+            "healthtrack_patients",
+            "lab_reports",
+            "health_records",
+            "medical_records",
+            "prescriptions"
+        ],
+        "sensitive_fields": {
+            "patients": ["first_name", "last_name", "email", "phone", "date_of_birth", "national_id", "medical_history"],
+            "lab_reports": ["detected_conditions", "abnormal_values", "recommendations", "analysis"]
+        },
+        "compliance": ["HIPAA", "DHA", "NABIDH"]
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

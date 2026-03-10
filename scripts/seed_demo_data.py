@@ -18,7 +18,7 @@ def hash_password(password: str) -> str:
 
 async def seed_demo_data():
     client = AsyncIOMotorClient("mongodb://localhost:27017")
-    db = client["test_database"]
+    db = client["healthtrack_pro"]
     
     print("\n" + "="*60)
     print("    DEMO DATA SEEDER - HealthTrack Pro & SecureSphere")

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "healthtrack_pro")
 
 # Comprehensive Drug Database

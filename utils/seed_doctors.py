@@ -14,7 +14,7 @@ import motor.motor_asyncio
 import os
 
 # Configuration
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/?authSource=admin")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "healthtrack_pro")
 
 # Indian cities and states

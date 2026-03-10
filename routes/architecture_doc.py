@@ -349,7 +349,7 @@ async def download_architecture_document():
     # Master URL
     url_para = doc.add_paragraph()
     url_para.add_run('MASTER URL: ').bold = True
-    url_para.add_run('https://caretrack-68.preview.emergentagent.com')
+    url_para.add_run('https://qa-track-suite.preview.emergentagent.com')
     
     doc.add_paragraph()
     

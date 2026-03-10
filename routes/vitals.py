@@ -14,7 +14,7 @@ router = APIRouter(prefix="/vitals", tags=["HealthTrack - Vitals"])
 async def get_db():
     from motor.motor_asyncio import AsyncIOMotorClient
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    return client[os.environ.get('DB_NAME', 'test_database')]
+    return client[os.environ.get('DB_NAME', 'healthtrack_pro')]
 
 # Models
 class VitalsCreate(BaseModel):

@@ -204,7 +204,7 @@ async def configure_tenant_features(
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    db = client[os.environ.get('DB_NAME', 'test_database')]
+    db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     tenant_config = {
         "tenant_id": tenant_id,
@@ -236,7 +236,7 @@ async def get_tenant_features(tenant_id: str, product: str) -> Dict:
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    db = client[os.environ.get('DB_NAME', 'test_database')]
+    db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     # Get base product features
     base_features = feature_flags.get_product_features(product)
@@ -291,7 +291,7 @@ async def list_tenant_configurations(
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    db = client[os.environ.get('DB_NAME', 'test_database')]
+    db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     configs = await db.tenant_feature_flags.find({}, {"_id": 0}).to_list(limit)
     
@@ -317,7 +317,7 @@ async def get_all_tenant_features(tenant_id: str) -> Dict:
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    db = client[os.environ.get('DB_NAME', 'test_database')]
+    db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     # Get all tenant configurations
     tenant_configs = await db.tenant_feature_flags.find(
@@ -351,7 +351,7 @@ async def delete_tenant_overrides(
     from motor.motor_asyncio import AsyncIOMotorClient
     import os
     client = AsyncIOMotorClient(os.environ.get('MONGO_URL', 'mongodb://localhost:27017'))
-    db = client[os.environ.get('DB_NAME', 'test_database')]
+    db = client[os.environ.get('DB_NAME', 'healthtrack_pro')]
     
     result = await db.tenant_feature_flags.delete_one(
         {"tenant_id": tenant_id, "product": product}

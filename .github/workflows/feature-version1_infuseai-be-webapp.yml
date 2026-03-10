@@ -63,4 +63,4 @@ jobs:
         with:
           app-name: 'InfuseAI-be-webapp'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_5CDEE227A8B24714B155A64DA9EA21CF }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E61B886CD1C7443B8765337F29B22F9D }}
